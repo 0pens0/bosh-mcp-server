@@ -1,0 +1,17 @@
+---
+applications:
+  - name: bosh-mcp-server
+    buildpacks:
+      - java_buildpack_offline
+    memory: 1G
+    instances: 1
+    path: target/bosh-mcp-0.1.0-SNAPSHOT.jar
+    env:
+      JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 21.+ } }'
+      BOSH_DIRECTOR: "YOUR_BOSH_DIRECTOR_URL"
+      BOSH_CLIENT: "YOUR_BOSH_CLIENT"
+      BOSH_CLIENT_SECRET: "YOUR_BOSH_CLIENT_SECRET"
+      BOSH_CA_CERT: |
+        -----BEGIN CERTIFICATE-----
+        YOUR_CA_CERTIFICATE_CONTENT
+        -----END CERTIFICATE-----

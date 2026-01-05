@@ -1,0 +1,12 @@
+bosh:
+  director: ${BOSH_DIRECTOR:}
+  client: ${BOSH_CLIENT:}
+  clientSecret: ${BOSH_CLIENT_SECRET:}
+  caCert: ${BOSH_CA_CERT:}
+  caCertPath: ${BOSH_CA_CERT_PATH:}
+  cliPath: ${BOSH_CLI_PATH:bosh}
+  connection:
+    timeout: 60
+    retry:
+      maxAttempts: 3
+      delay: 2
