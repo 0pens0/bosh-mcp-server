@@ -8,28 +8,22 @@ applications:
     path: target/bosh-mcp-0.1.0-SNAPSHOT.jar
     env:
       JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 21.+ } }'
-      BOSH_DIRECTOR: "10.0.10.51"
-      BOSH_CLIENT: "ops_manager"
-      BOSH_CLIENT_SECRET: "pGPiA-8g_zFqCDVmg9DOK2jg2b8jZyDC"
+      # BOSH Director Configuration
+      # Replace with your BOSH Director IP address or hostname
+      BOSH_DIRECTOR: "YOUR_BOSH_DIRECTOR_URL"
+      # BOSH Client credentials
+      # Replace with your BOSH client username
+      BOSH_CLIENT: "YOUR_BOSH_CLIENT"
+      # Replace with your BOSH client secret/password
+      BOSH_CLIENT_SECRET: "YOUR_BOSH_CLIENT_SECRET"
+      # BOSH Director CA Certificate
+      # Replace with your actual CA certificate content (including BEGIN/END lines)
       BOSH_CA_CERT: |
-      -----BEGIN CERTIFICATE-----
-      MIIDUTCCAjmgAwIBAgIVALBd6vQHoZx13XsIUih2zLVopAlkMA0GCSqGSIb3DQEB
-      CwUAMB8xCzAJBgNVBAYTAlVTMRAwDgYDVQQKDAdQaXZvdGFsMB4XDTI1MTIxMzIw
-      MDYwMloXDTI5MTIxMzIwMDYwMlowHzELMAkGA1UEBhMCVVMxEDAOBgNVBAoMB1Bp
-      dm90YWwwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDmwRlG/JD/Js+s
-      NjYCTtB82QZrtRMM9PBRIrb9fC7WboPcyq9T9Sjg2C2ZAjA1sI/b3kMDDtfcH/BS
-      1KYNsGxzKckpdidIgnCrwRNtRrB5eW/fX5M2JZXj4RUkAH2tjknQEVUNm/ngyB1I
-      dqkOEsCJb7Xt2b9+4oB5ErB4qQvbMR4Oz+fxaKXSTnK28Gn6S+UXS6apM7vlAUPL
-      yzZZo+Fzn+LGBSb/S0cyzulXiqCzM78xIqOdHiXg+nUvLJn9bRidR295eFohIER0
-      gBBpJE6AGdD4vxUOnh2oLaPoj66roMYhzM1xvS3q5+x85pjUbnsR3PMUAx1lbpiM
-      hW+vKjIdAgMBAAGjgYMwgYAwHQYDVR0OBBYEFFIoBljMTajjvtzEmn3CBhZ0jpT5
-      MB8GA1UdIwQYMBaAFFIoBljMTajjvtzEmn3CBhZ0jpT5MB0GA1UdJQQWMBQGCCsG
-      AQUFBwMCBggrBgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIB
-      BjANBgkqhkiG9w0BAQsFAAOCAQEAJipk2231ohrrIPCb9MjvlwFvwvjyXFLXy1Gu
-      VnBIQgeE2o2Y7wDE+jL+1MH+ZKeOogqPchFET3lYT1ao5CDFJo/fmdTk45W/+JD3
-      gEGrO7loj2e294QV9Q8VgtYRGkS6eNUJqkubV8ebaUNKD7bP5H0hhjW2+bTLUSME
-      R8KT3QNPe3jQtmVCqHvrbnIbtVpkPQIsAZ7jHlxGLeTTUAUDMyeJF1tqCqw5i4vJ
-      lMuA9S85fv6BNLGiBVTdFy2IY6Jfab8AqnlEpCQSTNijzEHSaq56ic6y9AZ+GJF5
-      QCmv0MJaUbPthr6J0HILm2En7PQA9nU0zD+qq8unLEJWmYmH2w==
-      -----END CERTIFICATE-----
+        -----BEGIN CERTIFICATE-----
+        YOUR_CA_CERTIFICATE_CONTENT_HERE
+        -----END CERTIFICATE-----
+      # Optional: BOSH CLI installation settings
+      # BOSH_CLI_INSTALL_ENABLED: "true"  # Enable auto-installation (default: true)
+      # BOSH_CLI_INSTALL_PATH: "/tmp/bosh-cli"  # Installation directory (default: ${java.io.tmpdir}/bosh-cli)
+      # BOSH_CLI_PATH: "bosh"  # Override CLI path (default: "bosh" or installed path)
 
