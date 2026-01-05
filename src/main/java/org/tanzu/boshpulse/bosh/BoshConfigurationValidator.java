@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -39,6 +40,7 @@ public class BoshConfigurationValidator {
     }
 
     @EventListener(ApplicationReadyEvent.class)
+    @Order(2)
     public void validateConfiguration() {
         logger.info("Validating BOSH configuration...");
         
@@ -63,10 +65,9 @@ public class BoshConfigurationValidator {
             logger.warn("BOSH CA certificate is not configured. Set bosh.caCert or bosh.caCertPath (or BOSH_CA_CERT/BOSH_CA_CERT_PATH environment variables).");
         }
         
-        // Check if BOSH CLI is available
+        // Check if BOSH CLI is available (warning only, not fatal)
         if (!cliExecutor.isCliAvailable()) {
-            logger.error("BOSH CLI is not available. Please ensure BOSH CLI is installed and in PATH.");
-            hasErrors = true;
+            logger.warn("BOSH CLI is not available. Please ensure BOSH CLI is installed and in PATH. Operations will fail at runtime if CLI is not available.");
         }
         
         if (hasErrors) {

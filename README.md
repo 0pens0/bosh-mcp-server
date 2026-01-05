@@ -70,7 +70,7 @@ cf apps
 # Look for your app and copy the URL (e.g., https://bosh-mcp-server.apps.your-domain.com)
 ```
 
-**Note**: The BOSH CLI must be available in the Cloud Foundry container. You may need to use a custom buildpack or Docker image that includes the BOSH CLI.
+**Note**: The BOSH CLI will be automatically downloaded and installed in the container at startup if not already available. This eliminates the need for a custom buildpack or Docker image.
 
 ### Local Development
 
@@ -81,7 +81,44 @@ cf apps
 
 ## ⚙️ Configuration
 
-### Environment Variables
+### Configuration Methods
+
+The server supports two methods for providing BOSH configuration:
+
+1. **Environment Variables** (for Cloud Foundry deployment)
+2. **`.env` folder** (for local development)
+
+**Priority**: Environment variables take precedence over `.env` folder values.
+
+### Local Development with `.env` Folder
+
+For local development, you can use the `.env` folder to store your BOSH credentials:
+
+1. **Create the `.env` folder** in the project root:
+   ```bash
+   mkdir -p .env
+   ```
+
+2. **Create `.env/bosh-env.ini`** with your BOSH credentials:
+   ```bash
+   export BOSH_ENVIRONMENT=10.0.10.51
+   export BOSH_CLIENT=ops_manager
+   export BOSH_CLIENT_SECRET=your-client-secret
+   export BOSH_CA_CERT=bosh.pem
+   ```
+
+3. **Create `.env/bosh.pem`** with your BOSH Director CA certificate:
+   ```bash
+   -----BEGIN CERTIFICATE-----
+   YOUR_CA_CERTIFICATE_CONTENT
+   -----END CERTIFICATE-----
+   ```
+
+**Note**: The `.env` folder is automatically ignored by git (see `.gitignore`). Never commit sensitive credentials to the repository.
+
+### Environment Variables (Cloud Foundry)
+
+For Cloud Foundry deployment, use environment variables in your `manifest.yml`:
 
 ```bash
 BOSH_DIRECTOR=https://bosh-director.example.com
@@ -90,14 +127,32 @@ BOSH_CLIENT_SECRET=your-bosh-client-secret
 BOSH_CA_CERT="-----BEGIN CERTIFICATE-----
 YOUR_CA_CERTIFICATE_CONTENT
 -----END CERTIFICATE-----"
-BOSH_CLI_PATH=bosh  # Optional, defaults to 'bosh'
+BOSH_CLI_PATH=bosh  # Optional, defaults to 'bosh' or auto-installed path
+BOSH_CLI_INSTALL_ENABLED=true  # Optional, enable auto-installation (default: true)
+BOSH_CLI_INSTALL_PATH=/tmp/bosh-cli  # Optional, installation directory
 ```
+
+#### BOSH CLI Auto-Installation
+
+The server automatically downloads and installs the BOSH CLI binary (v7.9.5) in the container at startup if:
+- The BOSH CLI is not found in PATH
+- No custom `BOSH_CLI_PATH` is configured
+- Auto-installation is enabled (default: `true`)
+
+The CLI is installed to `${java.io.tmpdir}/bosh-cli/bosh` by default, or to the path specified by `BOSH_CLI_INSTALL_PATH`.
+
+This feature allows the MCP server to run in Cloud Foundry containers without requiring:
+- Custom buildpacks
+- Docker images with pre-installed BOSH CLI
+- Manual BOSH CLI installation
+
+The CLI binary is downloaded from GitHub releases and made executable automatically.
 
 ### Configuration Validation
 
 The server includes automatic configuration validation on startup:
 - **Required**: BOSH Director URL, client, and client secret must be configured
-- **Required**: BOSH CLI must be available in PATH
+- **Auto-Installation**: BOSH CLI is automatically downloaded and installed if not found in PATH
 - **Optional**: CA certificate (warning if not set)
 - **Startup Check**: Validates BOSH CLI availability and Director connectivity
 - **Error Handling**: Fails fast with clear error messages if configuration is invalid
@@ -205,12 +260,17 @@ The server provides comprehensive health monitoring:
 
 ### 🔐 Credential Security
 
-**Important**: The `manifest.yml` file contains sensitive credentials and should be excluded from git via `.gitignore`.
+**Important**: Sensitive credentials should never be committed to git.
 
-- **Template**: Use `manifest-template.yml` as a starting point
-- **Local Configuration**: Copy template and add your credentials
-- **Environment Variables**: Credentials are passed via CF environment variables
-- **Never Commit**: Actual manifest files with credentials should never be committed to git
+- **`.env` folder**: Automatically ignored by `.gitignore` - safe for local development
+  - Contains `.env/bosh-env.ini` (BOSH credentials)
+  - Contains `.env/bosh.pem` (CA certificate)
+  - Never commit these files to git
+- **`manifest.yml`**: Excluded from git via `.gitignore`
+  - Use `manifest-template.yml` as a starting point
+  - Copy template and add your credentials for deployment
+  - Environment variables are passed via CF environment variables
+  - Never commit actual manifest files with credentials to git
 
 ## 📚 Documentation
 

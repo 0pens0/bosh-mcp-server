@@ -40,3 +40,4 @@ manifest-dev.yml
 manifest-staging.yml
 *.env
 .env
+.env/

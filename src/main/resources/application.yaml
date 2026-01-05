@@ -5,6 +5,10 @@ bosh:
   caCert: ${BOSH_CA_CERT:}
   caCertPath: ${BOSH_CA_CERT_PATH:}
   cliPath: ${BOSH_CLI_PATH:bosh}
+  cli:
+    install:
+      enabled: ${BOSH_CLI_INSTALL_ENABLED:true}
+      path: ${BOSH_CLI_INSTALL_PATH:${java.io.tmpdir}/bosh-cli}
   connection:
     timeout: 60
     retry:

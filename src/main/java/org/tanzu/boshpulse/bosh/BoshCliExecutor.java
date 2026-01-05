@@ -13,8 +13,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -31,39 +31,91 @@ public class BoshCliExecutor {
     private final String caCertPath;
     private final String cliPath;
     private final int timeoutSeconds;
+    private BoshCliInstaller cliInstaller;
+    private final BoshEnvConfigReader envConfigReader;
 
     public BoshCliExecutor(
-            @Value("${bosh.director}") String director,
-            @Value("${bosh.client}") String client,
-            @Value("${bosh.clientSecret}") String clientSecret,
+            @Value("${bosh.director:}") String director,
+            @Value("${bosh.client:}") String client,
+            @Value("${bosh.clientSecret:}") String clientSecret,
             @Value("${bosh.caCert:}") String caCert,
             @Value("${bosh.caCertPath:}") String caCertPath,
             @Value("${bosh.cliPath:bosh}") String cliPath,
-            @Value("${bosh.connection.timeout:60}") int timeoutSeconds) {
-        this.director = director;
-        this.client = client;
-        this.clientSecret = clientSecret;
+            @Value("${bosh.connection.timeout:60}") int timeoutSeconds,
+            BoshEnvConfigReader envConfigReader) {
+        this.envConfigReader = envConfigReader;
+        
+        // Initialize .env config reader
+        envConfigReader.initialize();
+        
+        // Use environment variables first, fallback to .env folder
+        this.director = (director != null && !director.trim().isEmpty()) 
+            ? director 
+            : envConfigReader.getDirector();
+        this.client = (client != null && !client.trim().isEmpty()) 
+            ? client 
+            : envConfigReader.getClient();
+        this.clientSecret = (clientSecret != null && !clientSecret.trim().isEmpty()) 
+            ? clientSecret 
+            : envConfigReader.getClientSecret();
         this.cliPath = cliPath;
         this.timeoutSeconds = timeoutSeconds;
         
         // Handle CA certificate - support both file path and content
+        // Priority: Environment variables > .env folder
+        // If BOSH_CA_CERT (content) is provided, use it even if BOSH_CA_CERT_PATH is set
+        String finalCaCert = (caCert != null && !caCert.trim().isEmpty()) 
+            ? caCert 
+            : envConfigReader.getCaCert();
         String finalCaCertPath = caCertPath;
-        if ((caCertPath == null || caCertPath.trim().isEmpty()) && 
-            caCert != null && !caCert.trim().isEmpty()) {
+        
+        logger.info("Certificate configuration - caCertPath: '{}', caCert provided: {}, .env available: {}", 
+                   caCertPath, (finalCaCert != null && !finalCaCert.trim().isEmpty()), 
+                   envConfigReader.isAvailable());
+        
+        // If certificate content is provided, always use it (create temp file)
+        // This takes precedence over caCertPath to allow overriding via BOSH_CA_CERT
+        if (finalCaCert != null && !finalCaCert.trim().isEmpty()) {
             // Write certificate content to temporary file
             try {
                 Path tempFile = Files.createTempFile("bosh-ca-cert", ".pem");
                 try (FileWriter writer = new FileWriter(tempFile.toFile())) {
-                    writer.write(caCert);
+                    writer.write(finalCaCert);
                 }
                 finalCaCertPath = tempFile.toString();
                 tempFile.toFile().deleteOnExit();
-                logger.debug("Created temporary CA certificate file: {}", finalCaCertPath);
+                logger.info("Created temporary CA certificate file: {} (size: {} bytes)", 
+                           finalCaCertPath, finalCaCert.length());
             } catch (IOException e) {
+                logger.error("Failed to create temporary CA certificate file", e);
                 throw new IllegalStateException("Failed to create temporary CA certificate file", e);
             }
+        } else if (caCertPath != null && !caCertPath.trim().isEmpty()) {
+            logger.info("Using provided CA certificate path: {}", caCertPath);
+        } else {
+            logger.warn("No CA certificate configured (neither caCertPath nor caCert provided)");
         }
         this.caCertPath = finalCaCertPath;
+    }
+    
+    /**
+     * Set the CLI installer (injected after construction to avoid circular dependency).
+     */
+    public void setCliInstaller(BoshCliInstaller cliInstaller) {
+        this.cliInstaller = cliInstaller;
+    }
+    
+    /**
+     * Get the effective CLI path, using the installed path if available.
+     */
+    private String getEffectiveCliPath() {
+        if (cliInstaller != null) {
+            String installedPath = cliInstaller.getResolvedCliPath();
+            if (installedPath != null && !installedPath.equals("bosh")) {
+                return installedPath;
+            }
+        }
+        return cliPath;
     }
 
     /**
@@ -92,9 +144,26 @@ public class BoshCliExecutor {
      */
     public String execute(String command) {
         List<String> commandParts = new ArrayList<>();
-        commandParts.add(cliPath);
+        commandParts.add(getEffectiveCliPath());
         commandParts.add("-e");
         commandParts.add(director);
+        
+        // Add CA certificate as command flag if available
+        if (caCertPath != null && !caCertPath.trim().isEmpty()) {
+            try {
+                // Verify the certificate file exists
+                Path certFile = Paths.get(caCertPath);
+                if (Files.exists(certFile)) {
+                    commandParts.add("--ca-cert");
+                    commandParts.add(caCertPath);
+                    logger.debug("Using CA certificate from file: {}", caCertPath);
+                } else {
+                    logger.warn("CA certificate file not found: {}", caCertPath);
+                }
+            } catch (Exception e) {
+                logger.warn("Error processing CA certificate path {}: {}", caCertPath, e.getMessage());
+            }
+        }
         
         // Add command parts
         String[] parts = command.split("\\s+");
@@ -111,8 +180,20 @@ public class BoshCliExecutor {
         env.put("BOSH_ENVIRONMENT", director);
         env.put("BOSH_CLIENT", client);
         env.put("BOSH_CLIENT_SECRET", clientSecret);
+        
+        // Set BOSH_CA_CERT environment variable if certificate path is available
         if (caCertPath != null && !caCertPath.trim().isEmpty()) {
-            env.put("BOSH_CA_CERT", caCertPath);
+            try {
+                Path certFile = Paths.get(caCertPath);
+                if (Files.exists(certFile)) {
+                    // BOSH CLI expects BOSH_CA_CERT to be the certificate content
+                    String certContent = Files.readString(certFile).trim();
+                    env.put("BOSH_CA_CERT", certContent);
+                    logger.info("Set BOSH_CA_CERT environment variable from file: {} (content length: {} chars)", caCertPath, certContent.length());
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to read CA certificate from {}: {}", caCertPath, e.getMessage());
+            }
         }
 
         try {
@@ -174,7 +255,7 @@ public class BoshCliExecutor {
      */
     public boolean isCliAvailable() {
         try {
-            ProcessBuilder processBuilder = new ProcessBuilder(cliPath, "--version");
+            ProcessBuilder processBuilder = new ProcessBuilder(getEffectiveCliPath(), "--version");
             Process process = processBuilder.start();
             boolean finished = process.waitFor(5, TimeUnit.SECONDS);
             if (!finished) {
